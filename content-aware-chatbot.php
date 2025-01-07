@@ -3,7 +3,7 @@
  * Plugin Name: Content-Aware Chatbot
  * Description: A chatbot that answers questions based on website content using Claude AI
  * Version: 1.0
- * Author: Your Name
+ * Author: Amber & AI
  */
 
 // Prevent direct access
