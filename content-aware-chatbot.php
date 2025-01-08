@@ -29,9 +29,14 @@ class ContentAwareChatbot {
     }
 
     private function build_content_index() {
-        // Get all published posts and pages
+        // Get all public post types
+        $post_types = get_post_types([
+            'public' => true,
+        ]);
+        
+        // Get all published content from all public post types
         $args = array(
-            'post_type' => array('post', 'page'),
+            'post_type' => array_values($post_types), // Include all public post types
             'post_status' => 'publish',
             'posts_per_page' => -1,
         );
@@ -39,13 +44,42 @@ class ContentAwareChatbot {
         $posts = get_posts($args);
         
         foreach ($posts as $post) {
+            // Get all meta data for the post
+            $meta = get_post_meta($post->ID);
+            $meta_content = '';
+            
+            // Convert meta data to searchable text
+            foreach ($meta as $key => $values) {
+                // Skip internal WordPress meta
+                if (strpos($key, '_') === 0) continue;
+                
+                foreach ($values as $value) {
+                    $meta_content .= ' ' . maybe_unserialize($value);
+                }
+            }
+            
+            // Get post excerpt
+            $excerpt = get_the_excerpt($post);
+            
             $this->content_index[] = array(
                 'id' => $post->ID,
                 'title' => $post->post_title,
-                'content' => wp_strip_all_tags($post->post_content),
+                'content' => wp_strip_all_tags($post->post_content) . ' ' . 
+                            wp_strip_all_tags($excerpt) . ' ' . 
+                            wp_strip_all_tags($meta_content),
                 'url' => get_permalink($post->ID)
             );
         }
+
+        // Add About/Bio information if it exists in options
+        $site_title = get_bloginfo('name');
+        $site_description = get_bloginfo('description');
+        $this->content_index[] = array(
+            'id' => 0,
+            'title' => 'Site Information',
+            'content' => "This is {$site_title}. {$site_description}",
+            'url' => home_url()
+        );
     }
 
     public function add_admin_menu() {
@@ -222,19 +256,45 @@ class ContentAwareChatbot {
     }
 
     private function search_content($query) {
-        // Basic implementation - you might want to improve this
         $relevant_posts = [];
         $sources = [];
-
+        $search_terms = explode(' ', strtolower($query));
+        
         foreach ($this->content_index as $post) {
-            if (stripos($post['content'], $query) !== false || 
-                stripos($post['title'], $query) !== false) {
+            $relevance_score = 0;
+            $content_lower = strtolower($post['content']);
+            $title_lower = strtolower($post['title']);
+            
+            foreach ($search_terms as $term) {
+                // Skip common words
+                if (strlen($term) < 3) continue;
+                
+                // Higher score for title matches
+                if (stripos($title_lower, $term) !== false) {
+                    $relevance_score += 2;
+                }
+                
+                // Score for content matches
+                if (stripos($content_lower, $term) !== false) {
+                    $relevance_score += 1;
+                }
+            }
+            
+            // Include content if it has any relevance
+            if ($relevance_score > 0) {
                 $relevant_posts[] = $post['content'];
                 $sources[] = [
                     'title' => $post['title'],
                     'url' => $post['url']
                 ];
             }
+        }
+
+        // If no relevant content found, include site information
+        if (empty($relevant_posts)) {
+            $site_name = get_bloginfo('name');
+            $site_description = get_bloginfo('description');
+            $relevant_posts[] = "This website belongs to {$site_name}. {$site_description}";
         }
 
         return [
