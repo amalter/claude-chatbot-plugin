@@ -310,7 +310,7 @@ class ContentAwareChatbot {
         $user_prompt = "Based on this content:\n\n{$relevant_content['content']}\n\nQuestion: {$query}";
 
         $data = [
-            'model' => 'claude-3-sonnet-20240229',
+            'model' => 'claude-3-7-sonnet-20250219',
             'system' => $system_prompt,
             'messages' => [
                 ['role' => 'user', 'content' => $user_prompt]
