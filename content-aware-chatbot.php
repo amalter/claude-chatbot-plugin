@@ -29,58 +29,53 @@ class ContentAwareChatbot {
     }
 
     private function build_content_index() {
-        // Get all public post types
-        $post_types = get_post_types([
-            'public' => true,
-        ]);
-        
-        // Get all published content from all public post types
-        $args = array(
-            'post_type' => array_values($post_types), // Include all public post types
-            'post_status' => 'publish',
+        $post_types = get_post_types(['public' => true]);
+    
+        $args = [
+            'post_type'      => array_values($post_types),
+            'post_status'    => 'publish',
             'posts_per_page' => -1,
-        );
-        
+        ];
+    
         $posts = get_posts($args);
-        
+        $safe_content_index = [];
+    
         foreach ($posts as $post) {
-            // Get all meta data for the post
-            $meta = get_post_meta($post->ID);
             $meta_content = '';
-            
-            // Convert meta data to searchable text
-            foreach ($meta as $key => $values) {
-                // Skip internal WordPress meta
-                if (strpos($key, '_') === 0) continue;
-                
-                foreach ($values as $value) {
-                    $meta_content .= ' ' . maybe_unserialize($value);
+    
+            // Get only non-sensitive meta keys
+            $safe_meta_keys = ['custom_description', 'additional_info']; // Define allowed meta keys
+            foreach ($safe_meta_keys as $key) {
+                $meta_value = get_post_meta($post->ID, $key, true);
+                if (!empty($meta_value)) {
+                    $meta_content .= ' ' . sanitize_text_field($meta_value);
                 }
             }
-            
-            // Get post excerpt
-            $excerpt = get_the_excerpt($post);
-            
-            $this->content_index[] = array(
-                'id' => $post->ID,
-                'title' => $post->post_title,
-                'content' => wp_strip_all_tags($post->post_content) . ' ' . 
-                            wp_strip_all_tags($excerpt) . ' ' . 
-                            wp_strip_all_tags($meta_content),
-                'url' => get_permalink($post->ID)
-            );
+    
+            // Sanitize post content & excerpt
+            $post_content = wp_strip_all_tags($post->post_content);
+            $post_excerpt = wp_strip_all_tags(get_the_excerpt($post));
+    
+            // Add to index
+            $safe_content_index[] = [
+                'id'      => intval($post->ID),
+                'title'   => sanitize_text_field($post->post_title),
+                'content' => "{$post_content} {$post_excerpt} {$meta_content}",
+                'url'     => esc_url(get_permalink($post->ID)),
+            ];
         }
-
-        // Add About/Bio information if it exists in options
-        $site_title = get_bloginfo('name');
-        $site_description = get_bloginfo('description');
-        $this->content_index[] = array(
-            'id' => 0,
-            'title' => 'Site Information',
-            'content' => "This is {$site_title}. {$site_description}",
-            'url' => home_url()
-        );
+    
+        // Include Site Information safely
+        $safe_content_index[] = [
+            'id'      => 0,
+            'title'   => 'Site Information',
+            'content' => esc_html(get_bloginfo('name') . '. ' . get_bloginfo('description')),
+            'url'     => esc_url(home_url()),
+        ];
+    
+        $this->content_index = $safe_content_index;
     }
+    
 
     public function add_admin_menu() {
         add_options_page(
