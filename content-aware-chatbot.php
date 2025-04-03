@@ -122,7 +122,23 @@ class ContentAwareChatbot {
         $sanitized = [];
         
         if (isset($input['anthropic_api_key'])) {
-            $sanitized['anthropic_api_key'] = sanitize_text_field($input['anthropic_api_key']);
+            $api_key = sanitize_text_field($input['anthropic_api_key']);
+            
+            // Only encrypt if the API key is not empty and has changed
+            if (!empty($api_key)) {
+                $current_options = get_option($this->option_name);
+                $current_key = isset($current_options['anthropic_api_key']) ? $this->decrypt_api_key($current_options['anthropic_api_key']) : '';
+                
+                // Only encrypt if the key has changed
+                if ($api_key !== $current_key) {
+                    $sanitized['anthropic_api_key'] = $this->encrypt_api_key($api_key);
+                } else {
+                    // Keep the already encrypted key
+                    $sanitized['anthropic_api_key'] = $current_options['anthropic_api_key'];
+                }
+            } else {
+                $sanitized['anthropic_api_key'] = '';
+            }
         }
 
         return $sanitized;
@@ -134,7 +150,7 @@ class ContentAwareChatbot {
 
     public function render_api_key_field() {
         $options = get_option($this->option_name);
-        $api_key = isset($options['anthropic_api_key']) ? $options['anthropic_api_key'] : '';
+        $api_key = isset($options['anthropic_api_key']) ? $this->decrypt_api_key($options['anthropic_api_key']) : '';
         
         ?>
         <input type="password" 
@@ -187,7 +203,8 @@ class ContentAwareChatbot {
 
     private function render_status_check() {
         $options = get_option($this->option_name);
-        $api_key = isset($options['anthropic_api_key']) ? $options['anthropic_api_key'] : '';
+        $encrypted_key = isset($options['anthropic_api_key']) ? $options['anthropic_api_key'] : '';
+        $api_key = empty($encrypted_key) ? '' : $this->decrypt_api_key($encrypted_key);
         
         if (empty($api_key)) {
             echo '<div class="notice notice-warning"><p>⚠️ API key not configured. The chatbot will not function until you add an API key.</p></div>';
@@ -205,7 +222,78 @@ class ContentAwareChatbot {
 
     public function get_api_key() {
         $options = get_option($this->option_name);
-        return isset($options['anthropic_api_key']) ? $options['anthropic_api_key'] : '';
+        $encrypted_key = isset($options['anthropic_api_key']) ? $options['anthropic_api_key'] : '';
+        
+        if (empty($encrypted_key)) {
+            return '';
+        }
+        
+        return $this->decrypt_api_key($encrypted_key);
+    }
+
+    /**
+     * Encrypt API key
+     */
+    private function encrypt_api_key($api_key) {
+        // Generate a random encryption key if not already set
+        $encryption_key = get_option('chatbot_encryption_key');
+        if (!$encryption_key) {
+            $encryption_key = bin2hex(random_bytes(32)); // 256-bit key
+            update_option('chatbot_encryption_key', $encryption_key);
+        }
+        
+        // Create initialization vector
+        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+        
+        // Encrypt the API key
+        $encrypted = openssl_encrypt(
+            $api_key,
+            'aes-256-cbc',
+            hex2bin($encryption_key),
+            0,
+            $iv
+        );
+        
+        // Combine IV and encrypted data
+        return base64_encode($iv . $encrypted);
+    }
+
+    /**
+     * Decrypt API key
+     */
+    private function decrypt_api_key($encrypted_data) {
+        $encryption_key = get_option('chatbot_encryption_key');
+        
+        // If no encryption key exists, we can't decrypt
+        if (!$encryption_key) {
+            return '';
+        }
+        
+        // Decode the combined string
+        $decoded = base64_decode($encrypted_data);
+        if ($decoded === false) {
+            return '';
+        }
+        
+        // Extract IV and encrypted data
+        $iv_length = openssl_cipher_iv_length('aes-256-cbc');
+        if (strlen($decoded) <= $iv_length) {
+            return '';
+        }
+        
+        $iv = substr($decoded, 0, $iv_length);
+        $encrypted = substr($decoded, $iv_length);
+        
+        // Decrypt
+        $decrypted = openssl_decrypt(
+            $encrypted,
+            'aes-256-cbc',
+            hex2bin($encryption_key),
+            0,
+            $iv
+        );
+        
+        return $decrypted !== false ? $decrypted : '';
     }
 
     public function process_query($request) {
