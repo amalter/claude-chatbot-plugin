@@ -231,70 +231,66 @@ class ContentAwareChatbot {
         return $this->decrypt_api_key($encrypted_key);
     }
 
-    /**
-     * Encrypt API key
-     */
-    private function encrypt_api_key($api_key) {
-        // Generate a random encryption key if not already set
-        $encryption_key = get_option('chatbot_encryption_key');
-        if (!$encryption_key) {
-            $encryption_key = bin2hex(random_bytes(32)); // 256-bit key
-            update_option('chatbot_encryption_key', $encryption_key);
-        }
-        
-        // Create initialization vector
-        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-        
-        // Encrypt the API key
-        $encrypted = openssl_encrypt(
-            $api_key,
-            'aes-256-cbc',
-            hex2bin($encryption_key),
-            0,
-            $iv
-        );
-        
-        // Combine IV and encrypted data
-        return base64_encode($iv . $encrypted);
+  /**
+ * Encrypt API key using a derived key from AUTH_SALT
+ */
+private function encrypt_api_key($api_key) {
+    $secret_key = hash_hmac('sha256', 'chatbot_encryption_key', AUTH_SALT, true);
+    
+    // Create initialization vector
+    $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+    
+    // Encrypt the API key
+    $encrypted = openssl_encrypt(
+        $api_key,
+        'aes-256-cbc',
+        $secret_key,
+        0,
+        $iv
+    );
+    
+    // Combine IV and encrypted data
+    return base64_encode($iv . $encrypted);
+}
+
+/**
+ * Decrypt API key using a derived key from AUTH_SALT
+ */
+private function decrypt_api_key($encrypted_data) {
+    if (empty($encrypted_data)) {
+        return '';
     }
 
-    /**
-     * Decrypt API key
-     */
-    private function decrypt_api_key($encrypted_data) {
-        $encryption_key = get_option('chatbot_encryption_key');
-        
-        // If no encryption key exists, we can't decrypt
-        if (!$encryption_key) {
-            return '';
-        }
-        
-        // Decode the combined string
-        $decoded = base64_decode($encrypted_data);
-        if ($decoded === false) {
-            return '';
-        }
-        
-        // Extract IV and encrypted data
-        $iv_length = openssl_cipher_iv_length('aes-256-cbc');
-        if (strlen($decoded) <= $iv_length) {
-            return '';
-        }
-        
-        $iv = substr($decoded, 0, $iv_length);
-        $encrypted = substr($decoded, $iv_length);
-        
-        // Decrypt
-        $decrypted = openssl_decrypt(
-            $encrypted,
-            'aes-256-cbc',
-            hex2bin($encryption_key),
-            0,
-            $iv
-        );
-        
-        return $decrypted !== false ? $decrypted : '';
+    $secret_key = hash_hmac('sha256', 'chatbot_encryption_key', AUTH_SALT, true);
+    
+    // Decode the combined string
+    $decoded = base64_decode($encrypted_data);
+    
+    if ($decoded === false) {
+        return '';
     }
+
+    // Extract IV and encrypted data
+    $iv_length = openssl_cipher_iv_length('aes-256-cbc');
+    if (strlen($decoded) <= $iv_length) {
+        return '';
+    }
+
+    $iv = substr($decoded, 0, $iv_length);
+    $encrypted = substr($decoded, $iv_length);
+
+    // Decrypt
+    $decrypted = openssl_decrypt(
+        $encrypted,
+        'aes-256-cbc',
+        $secret_key,
+        0,
+        $iv
+    );
+
+    return $decrypted !== false ? $decrypted : '';
+}
+
 
     public function process_query($request) {
         $api_key = $this->get_api_key();
