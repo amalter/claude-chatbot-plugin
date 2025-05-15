@@ -1,4 +1,3 @@
-// Save this as js/chatbot.js in your plugin directory
 jQuery(document).ready(function ($) {
   console.log("chatbot.js loaded");
   const chatbot = {

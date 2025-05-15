@@ -1,9 +1,13 @@
 <?php
 /**
- * Plugin Name: Content-Aware Chatbot
- * Description: A chatbot that answers questions based on website content using Claude AI
- * Version: 1.0
- * Author: Amber & AI
+ * Plugin Name: Content-Aware Chatbot (Claude Integration)
+ * Description: A proof-of-concept WordPress plugin that adds a simple chatbot interface powered by Claude AI. Responds to user input with context-aware answers based on page content.
+ * Version: 1.0.0
+ * Author: Amber Alter
+ * Author URI: https://www.amberalter.com
+ * License: MIT
+ * License URI: https://opensource.org/licenses/MIT
+ * Text Domain: content-aware-chatbot
  */
 
 // Prevent direct access
@@ -395,14 +399,14 @@ class ContentAwareChatbot {
     public function enqueue_scripts() {
         wp_enqueue_style(
             'content-aware-chatbot',
-            plugins_url('css/chatbot.css', __FILE__),
+            plugins_url('css/style.css', __FILE__),
             [],
             '1.0.0'
         );
 
         wp_enqueue_script(
             'content-aware-chatbot',
-            plugins_url('js/chatbot.js', __FILE__),
+            plugins_url('js/main.js', __FILE__),
             ['jquery'],
             '1.0.0',
             true
@@ -449,8 +453,6 @@ class ContentAwareChatbot {
             ]
         ]);
     }
-
-    // Rest of the class methods remain the same...
 }
 
 // Initialize the plugin
