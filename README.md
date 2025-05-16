@@ -4,7 +4,7 @@
 
 ## Overview
 
-This is a **proof-of-concept WordPress plugin** that integrates with the [Claude API](https://www.anthropic.com/claude) to create a simple, content-aware chatbot interface. The plugin is designed to demonstrate how AI-driven chat interactions can be embedded into WordPress sites using shortcodes and AJAX.
+This is a **proof-of-concept WordPress plugin** that integrates with the [Claude API](https://www.anthropic.com/claude) to create a simple, content-aware chatbot interface.
 
 The chatbot attempts to provide contextually aware responses by leveraging the site's content and Anthropic's Claude API. It was built to explore:
 
@@ -12,8 +12,6 @@ The chatbot attempts to provide contextually aware responses by leveraging the s
 - How to structure a lightweight chat interface in a plugin
 - The use of prompt engineering in development
 - The capabilities and limitations of using AI-generated code as a baseline
-
-This plugin was primarily created as a learning exercise, using [Cursor](https://www.cursor.so/) and Claude to assist in development.
 
 📖 Read more about the process and what I learned on my [blog](https://www.amberalter.com/ai-driven-development-chat-bot/).
 
@@ -54,9 +52,9 @@ It is intended for **learning and experimentation only**. Use at your own risk.
 ## Getting Started
 
 1. Clone or download this repo into your WordPress `wp-content/plugins` directory.
-2. Add your Claude API key to the appropriate section in the PHP file.
-3. Activate the plugin in your WP admin.
-4. Use the `[claude_chatbot]` shortcode to display the chatbot interface on any page or post.
+2. Activate the plugin in your WP admin.
+3. Go to plugin settings WP admin > Settings > Chat Bot Settings to add your
+   Anthropic API Key
 
 > Note: This setup is intentionally simple and insecure — **do not deploy without serious modification**.
 
@@ -70,7 +68,6 @@ It is intended for **learning and experimentation only**. Use at your own risk.
 - [ ] Add user authentication and permission checks (e.g., only show chatbot to certain roles)
 - [ ] Escape output to prevent XSS vulnerabilities
 - [ ] Refactor for shortcode support
-- [ ] Add options page in the WP admin for managing API keys and settings
 - [ ] Improve error handling and user feedback in the UI
 - [ ] Make front-end styles and markup more customizable (via filters or templates)
 - [ ] Add session context or memory for ongoing conversations
